@@ -56,6 +56,14 @@ int pojavInitOpenGL() {
         renderer = @ RENDERER_NAME_GL4ES;
         setenv("HYNIS_RENDERER", renderer.UTF8String, 1);
         set_gl_bridge_tbl();
+    } else if ([renderer isEqualToString:@ RENDERER_NAME_LTW]) {
+        renderer = @ RENDERER_NAME_LTW;
+        setenv("HYNIS_RENDERER", renderer.UTF8String, 1);
+        set_gl_bridge_tbl();
+    } else if ([renderer isEqualToString:@ RENDERER_NAME_MOBILEGL]) {
+        // renderer = @ RENDERER_NAME_MOBILEGL;
+        setenv("MOBILEGL_BACKEND_TYPE", "DirectVulkan", 1);
+        set_gl_bridge_tbl();
     } else if ([renderer isEqualToString:@ RENDERER_NAME_MOBILEGLUES]) {
         renderer = @ RENDERER_NAME_MOBILEGLUES;
         setenv("HYNIS_RENDERER", renderer.UTF8String, 1);
