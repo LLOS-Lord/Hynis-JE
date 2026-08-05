@@ -11,7 +11,13 @@ static EGLDisplay g_EglDisplay;
 static egl_library handle;
 
 void dlsym_EGL() {
-    void* dl_handle = dlopen("@rpath/libtinygl4angle.dylib", RTLD_GLOBAL);
+    NSString *renderer = NSProcessInfo.processInfo.environment[@"HYNIS_RENDERER"];
+    void* dl_handle;
+    if ([renderer isEqualToString:@ RENDERER_NAME_MOBILEGL]) {
+        dl_handle = dlopen("@rpath/libMobileGL.dylib", RTLD_GLOBAL);
+    } else {
+        dl_handle = dlopen("@rpath/libtinygl4angle.dylib", RTLD_GLOBAL);
+    }
     NSCAssert(dl_handle, @(dlerror()));
     handle.eglBindAPI = dlsym(dl_handle, "eglBindAPI");
     handle.eglChooseConfig = dlsym(dl_handle, "eglChooseConfig");
