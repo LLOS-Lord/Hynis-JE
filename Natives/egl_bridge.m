@@ -62,7 +62,7 @@ int pojavInitOpenGL() {
         set_gl_bridge_tbl();
     } else if ([renderer isEqualToString:@ RENDERER_NAME_MOBILEGL]) {
         renderer = @ RENDERER_NAME_MOBILEGL;
-        setenv("MOBILEGL_BACKEND_TYPE", "DirectVulkan", 1);
+        setenv("MOBILEGL_BACKEND_TYPE", "DirectGLES", 1);
         set_gl_bridge_tbl();
     } else if ([renderer isEqualToString:@ RENDERER_NAME_MOBILEGLUES]) {
         renderer = @ RENDERER_NAME_MOBILEGLUES;
