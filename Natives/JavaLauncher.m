@@ -37,6 +37,23 @@ void init_loadDefaultEnv() {
     // Silent Caciocavallo NPE error in locating Android-only lib
     setenv("LD_LIBRARY_PATH", "", 1);
 
+    // iOS 16 ABI compatibility: preload shim if available
+    dlopen("@rpath/libMobileGL_iOS16_shim.dylib", RTLD_GLOBAL | RTLD_NOW);
+
+    // MobileGL Vulkan on iOS: configure MoltenVK
+    NSString* renderer = [PLProfiles resolveKeyForCurrentProfile:@"renderer"];
+    if ([renderer hasPrefix:@"libMobileGL"]) {
+        setenv("MOBILEGL_BACKEND_TYPE", "DirectVulkan", 1);
+        setenv("MOBILEGL_FORCE_VULKAN", "1", 1);
+        NSString* mvkPath = [NSString stringWithFormat:@"%@/Frameworks/libMoltenVK.dylib", NSBundle.mainBundle.bundlePath];
+        if ([fm fileExistsAtPath:mvkPath]) {
+            setenv("VK_ICD_FILENAMES", mvkPath.UTF8String, 1);
+            NSLog(@"[JavaLauncher-iOS16] MoltenVK ICD: %@", mvkPath);
+        }
+        setenv("MVK_CONFIG_LOG_LEVEL", "1", 1);
+        NSLog(@"[JavaLauncher-iOS16] MobileGL Vulkan configured for iOS 16");
+    }
+
     // Ignore mipmap for performance(?) seems does not affect iOS
     //setenv("LIBGL_MIPMAP", "3", 1);
 
@@ -51,22 +68,6 @@ void init_loadDefaultEnv() {
 
     // Runs JVM in a separate thread
     setenv("HACK_IGNORE_START_ON_FIRST_THREAD", "1", 1);
-
-    // MobileGL Vulkan on iOS: configure MoltenVK paths
-#if TARGET_OS_IOS
-    const char* currentRenderer = getenv("HYNIS_RENDERER");
-    if (currentRenderer && strstr(currentRenderer, "MobileGL") != NULL) {
-        setenv("MOBILEGL_BACKEND_TYPE", "DirectVulkan", 1);
-        setenv("MOBILEGL_FORCE_VULKAN", "1", 1);
-        // MoltenVK ICD path for iOS
-        NSString* moltenvkPath = [NSString stringWithFormat:@"%@/Frameworks/libMoltenVK.dylib", NSBundle.mainBundle.bundlePath];
-        if ([fm fileExistsAtPath:moltenvkPath]) {
-            setenv("VK_ICD_FILENAMES", moltenvkPath.UTF8String, 1);
-            NSLog(@"[JavaLauncher] MobileGL Vulkan: MoltenVK ICD set to %@", moltenvkPath);
-        }
-        NSLog(@"[JavaLauncher] MobileGL Vulkan backend configured for iOS");
-    }
-#endif
 }
 
 void init_loadCustomEnv() {
@@ -268,25 +269,10 @@ int launchJVM(NSString *username, id launchTarget, int width, int height, int mi
     const char *glLibName = getenv("HYNIS_RENDERER");
     if (glLibName) {
         if (!strcmp(glLibName, "auto")) {
-#if TARGET_OS_IOS
-            // On iOS, prefer MobileGL with Vulkan backend
-            glLibName = RENDERER_NAME_MOBILEGL;
-            setenv("HYNIS_RENDERER", glLibName, 1);
-            setenv("MOBILEGL_BACKEND_TYPE", "DirectVulkan", 1);
-            setenv("MOBILEGL_FORCE_VULKAN", "1", 1);
-            NSLog(@"[JavaLauncher] Auto renderer on iOS: using MobileGL with Vulkan");
-#else
             // workaround only applies to 1.20.2+
             glLibName = RENDERER_NAME_MTL_ANGLE;
-#endif
         }
         margv[++margc] = [NSString stringWithFormat:@"-Dorg.lwjgl.opengl.libname=%s", glLibName].UTF8String;
-    }
-
-    // Pass MobileGL backend config to JVM
-    const char* mobileglBackend = getenv("MOBILEGL_BACKEND_TYPE");
-    if (mobileglBackend) {
-        margv[++margc] = [NSString stringWithFormat:@"-Dmobilegl.backend=%s", mobileglBackend].UTF8String;
     }
 
     NSString *librariesPath = [NSString stringWithFormat:@"%@/libs", NSBundle.mainBundle.bundlePath];

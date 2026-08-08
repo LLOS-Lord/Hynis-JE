@@ -51,6 +51,15 @@ int pojavInit(BOOL useStackQueue) {
 int pojavInitOpenGL() {
     NSString *renderer = NSProcessInfo.processInfo.environment[@"HYNIS_RENDERER"];
     BOOL isAuto = [renderer isEqualToString:@"auto"];
+
+    // iOS 16 ABI shim: load compatibility layer BEFORE renderer library
+    void* shimHandle = dlopen("@rpath/libMobileGL_iOS16_shim.dylib", RTLD_GLOBAL);
+    if (shimHandle) {
+        NSLog(@"[Hynis-iOS16] ABI shim loaded successfully");
+    } else {
+        NSLog(@"[Hynis-iOS16] ABI shim not found (optional): %s", dlerror());
+    }
+
     if (isAuto || [renderer isEqualToString:@ RENDERER_NAME_GL4ES]) {
         // At this point, if renderer is still auto (unspecified major version), pick gl4es
         renderer = @ RENDERER_NAME_GL4ES;
@@ -63,10 +72,17 @@ int pojavInitOpenGL() {
     } else if ([renderer isEqualToString:@ RENDERER_NAME_MOBILEGL]) {
         renderer = @ RENDERER_NAME_MOBILEGL;
 #if TARGET_OS_IOS
-        // On iOS, MobileGL uses MoltenVK (DirectVulkan) for best compatibility
-        setenv("MOBILEGL_BACKEND_TYPE", "DirectVulkan", 1);
-        setenv("MOBILEGL_FORCE_VULKAN", "1", 1);
-        NSLog(@"[Hynis] MobileGL on iOS: using DirectVulkan backend with MoltenVK");
+        void* mvkTest = dlopen("@rpath/libMoltenVK.dylib", RTLD_NOW);
+        if (!mvkTest) mvkTest = dlopen("libMoltenVK.dylib", RTLD_NOW);
+        if (mvkTest) {
+            setenv("MOBILEGL_BACKEND_TYPE", "DirectVulkan", 1);
+            setenv("MOBILEGL_FORCE_VULKAN", "1", 1);
+            NSLog(@"[Hynis] MobileGL on iOS: using DirectVulkan backend");
+            dlclose(mvkTest);
+        } else {
+            setenv("MOBILEGL_BACKEND_TYPE", "DirectGLES", 1);
+            NSLog(@"[Hynis] MobileGL on iOS: MoltenVK not found, using DirectGLES");
+        }
 #else
         setenv("MOBILEGL_BACKEND_TYPE", "DirectGLES", 1);
 #endif
@@ -99,29 +115,10 @@ void pojavSetWindowHint(int hint, int value) {
                 setenv("HYNIS_RENDERER", RENDERER_NAME_GL4ES, 1);
                 JNI_LWJGL_changeRenderer(RENDERER_NAME_GL4ES);
                 break;
-            case 3:
-#if TARGET_OS_IOS
-                // iOS: prefer MobileGL with Vulkan backend for OpenGL 3.x
-                setenv("HYNIS_RENDERER", RENDERER_NAME_MOBILEGL, 1);
-                setenv("MOBILEGL_BACKEND_TYPE", "DirectVulkan", 1);
-                setenv("MOBILEGL_FORCE_VULKAN", "1", 1);
-                JNI_LWJGL_changeRenderer(RENDERER_NAME_MOBILEGL);
-#else
-                setenv("HYNIS_RENDERER", RENDERER_NAME_MOBILEGLUES, 1);
-                JNI_LWJGL_changeRenderer(RENDERER_NAME_MOBILEGLUES);
-#endif
-                break;
+            // case 4: use Zink?
             default:
-#if TARGET_OS_IOS
-                // iOS: prefer MobileGL with Vulkan backend for modern versions
-                setenv("HYNIS_RENDERER", RENDERER_NAME_MOBILEGL, 1);
-                setenv("MOBILEGL_BACKEND_TYPE", "DirectVulkan", 1);
-                setenv("MOBILEGL_FORCE_VULKAN", "1", 1);
-                JNI_LWJGL_changeRenderer(RENDERER_NAME_MOBILEGL);
-#else
                 setenv("HYNIS_RENDERER", RENDERER_NAME_MOBILEGLUES, 1);
                 JNI_LWJGL_changeRenderer(RENDERER_NAME_MOBILEGLUES);
-#endif
                 break;
         }
     }

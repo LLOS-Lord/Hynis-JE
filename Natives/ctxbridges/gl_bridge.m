@@ -69,10 +69,7 @@ gl_render_window_t* gl_init_context(gl_render_window_t *share) {
         EGL_STENCIL_SIZE, 8,
         EGL_SURFACE_TYPE, EGL_WINDOW_BIT|EGL_PBUFFER_BIT,
         EGL_RENDERABLE_TYPE, angleDesktopGL ? EGL_OPENGL_BIT : EGL_OPENGL_ES3_BIT,
-#if TARGET_OS_IOS
-        // MobileGL Vulkan on iOS may need specific config hints
         EGL_CONFORMANT, EGL_OPENGL_ES3_BIT,
-#endif
         EGL_NONE
     };
 
