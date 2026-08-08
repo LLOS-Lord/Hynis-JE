@@ -164,6 +164,13 @@ NSArray* getRendererNames(BOOL containsDefault) {
         localize(@"preference.title.renderer.debug.zink", nil)
     ].mutableCopy;
 
+    // On iOS, rename MobileGL to indicate Vulkan backend
+#if TARGET_OS_IOS
+    if (array.count > 4) {
+        array[4] = @"MobileGL (Vulkan/MoltenVK)";
+    }
+#endif
+
     if (containsDefault) {
         [array insertObject:@"(default)" atIndex:0];
     }

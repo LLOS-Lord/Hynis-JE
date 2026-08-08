@@ -62,7 +62,14 @@ int pojavInitOpenGL() {
         set_gl_bridge_tbl();
     } else if ([renderer isEqualToString:@ RENDERER_NAME_MOBILEGL]) {
         renderer = @ RENDERER_NAME_MOBILEGL;
+#if TARGET_OS_IOS
+        // On iOS, MobileGL uses MoltenVK (DirectVulkan) for best compatibility
+        setenv("MOBILEGL_BACKEND_TYPE", "DirectVulkan", 1);
+        setenv("MOBILEGL_FORCE_VULKAN", "1", 1);
+        NSLog(@"[Hynis] MobileGL on iOS: using DirectVulkan backend with MoltenVK");
+#else
         setenv("MOBILEGL_BACKEND_TYPE", "DirectGLES", 1);
+#endif
         set_gl_bridge_tbl();
     } else if ([renderer isEqualToString:@ RENDERER_NAME_MOBILEGLUES]) {
         renderer = @ RENDERER_NAME_MOBILEGLUES;
@@ -92,10 +99,29 @@ void pojavSetWindowHint(int hint, int value) {
                 setenv("HYNIS_RENDERER", RENDERER_NAME_GL4ES, 1);
                 JNI_LWJGL_changeRenderer(RENDERER_NAME_GL4ES);
                 break;
-            // case 4: use Zink?
-            default:
+            case 3:
+#if TARGET_OS_IOS
+                // iOS: prefer MobileGL with Vulkan backend for OpenGL 3.x
+                setenv("HYNIS_RENDERER", RENDERER_NAME_MOBILEGL, 1);
+                setenv("MOBILEGL_BACKEND_TYPE", "DirectVulkan", 1);
+                setenv("MOBILEGL_FORCE_VULKAN", "1", 1);
+                JNI_LWJGL_changeRenderer(RENDERER_NAME_MOBILEGL);
+#else
                 setenv("HYNIS_RENDERER", RENDERER_NAME_MOBILEGLUES, 1);
                 JNI_LWJGL_changeRenderer(RENDERER_NAME_MOBILEGLUES);
+#endif
+                break;
+            default:
+#if TARGET_OS_IOS
+                // iOS: prefer MobileGL with Vulkan backend for modern versions
+                setenv("HYNIS_RENDERER", RENDERER_NAME_MOBILEGL, 1);
+                setenv("MOBILEGL_BACKEND_TYPE", "DirectVulkan", 1);
+                setenv("MOBILEGL_FORCE_VULKAN", "1", 1);
+                JNI_LWJGL_changeRenderer(RENDERER_NAME_MOBILEGL);
+#else
+                setenv("HYNIS_RENDERER", RENDERER_NAME_MOBILEGLUES, 1);
+                JNI_LWJGL_changeRenderer(RENDERER_NAME_MOBILEGLUES);
+#endif
                 break;
         }
     }
